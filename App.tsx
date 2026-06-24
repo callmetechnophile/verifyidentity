@@ -33,12 +33,17 @@ interface FaceVerifyResult {
   faceEmbedding: number[] | null;
 }
 
+import { VisionCameraProxy } from 'react-native-vision-camera';
+
+// Initialize the native frame processor plugin in JSI
+const plugin = VisionCameraProxy.initFrameProcessorPlugin('faceVerification');
+
 // ── Map the native frame processor plugin ──
-// Declared inside a worklet context.
-const faceVerification = (frame: any): FaceVerifyResult | null => {
+const faceVerification = (frame: Frame): FaceVerifyResult | null => {
   'worklet';
-  // @ts-ignore - native frame processor plugin registry call
-  return __faceVerification(frame);
+  if (plugin == null) return null;
+  // @ts-ignore - native frame processor JSI plugin call
+  return plugin.call(frame) as FaceVerifyResult | null;
 };
 
 export default function App() {
@@ -46,6 +51,7 @@ export default function App() {
   const device = useCameraDevice('back');
 
   // UI States
+  const [screen, setScreen] = useState<'WELCOME' | 'SCAN'>('WELCOME');
   const [status, setStatus] = useState<'NO_FACE' | 'SCANNING' | 'VERIFIED' | 'SPOOF'>('NO_FACE');
   const [livenessScore, setLivenessScore] = useState<number>(0);
   const [bbox, setBbox] = useState<BoundingBox | null>(null);
@@ -117,6 +123,77 @@ export default function App() {
     updateUIState(result);
   }, []);
 
+  const renderWelcomeScreen = () => {
+    return (
+      <View style={[styles.container, styles.welcomeContainer]}>
+        <StatusBar hidden />
+        <View style={styles.welcomeLeft}>
+          <View style={styles.logoContainer}>
+            <View style={styles.logoRingOuter}>
+              <View style={styles.logoRingInner}>
+                <Text style={styles.logoIcon}>🛡️</Text>
+              </View>
+            </View>
+          </View>
+          <Text style={styles.welcomeTitle}>VerifyIdentity</Text>
+          <Text style={styles.welcomeSub}>On-Device Face Verification & Liveness Pipeline</Text>
+        </View>
+
+        <View style={styles.welcomeRight}>
+          <View style={styles.healthCard}>
+            <Text style={styles.healthTitle}>SYSTEM HEALTH</Text>
+            
+            <View style={styles.healthRow}>
+              <Text style={styles.healthLabel}>Camera Permission:</Text>
+              <Text style={[styles.healthVal, hasPermission ? styles.greenText : styles.yellowText]}>
+                {hasPermission ? '● Granted' : '● Pending'}
+              </Text>
+            </View>
+
+            <View style={styles.healthRow}>
+              <Text style={styles.healthLabel}>Camera Device:</Text>
+              <Text style={[styles.healthVal, device ? styles.greenText : styles.redText]}>
+                {device ? '● Ready' : '● Missing'}
+              </Text>
+            </View>
+
+            <View style={styles.healthRow}>
+              <Text style={styles.healthLabel}>Biometric Engine:</Text>
+              <Text style={[styles.healthVal, styles.cyanText]}>
+                ● TFLite INT8 (Local)
+              </Text>
+            </View>
+
+            <View style={styles.healthRow}>
+              <Text style={styles.healthLabel}>Configuration:</Text>
+              <Text style={[styles.healthVal, styles.grayText]}>
+                ● Landscape Locked
+              </Text>
+            </View>
+          </View>
+
+          <TouchableOpacity 
+            style={styles.scanStartBtn} 
+            onPress={() => {
+              if (!hasPermission) {
+                requestPermission();
+              }
+              setScreen('SCAN');
+            }}
+          >
+            <Text style={styles.scanStartBtnText}>AUTHENTICATE IDENTITY</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  };
+
+  // If we are on the welcome screen, render it directly
+  if (screen === 'WELCOME') {
+    return renderWelcomeScreen();
+  }
+
+  // Permission check only when starting scanning
   if (!hasPermission) {
     return (
       <View style={[styles.container, styles.center]}>
@@ -125,6 +202,9 @@ export default function App() {
         <Text style={styles.subtext}>VerifyIdentity requires camera access to process biometric verification.</Text>
         <TouchableOpacity style={styles.button} onPress={requestPermission}>
           <Text style={styles.buttonText}>Grant Access</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.button, styles.backBtn, { marginTop: 15 }]} onPress={() => setScreen('WELCOME')}>
+          <Text style={styles.buttonText}>Back to Welcome</Text>
         </TouchableOpacity>
       </View>
     );
@@ -136,6 +216,9 @@ export default function App() {
         <StatusBar hidden />
         <ActivityIndicator size="large" color="#4a90d9" />
         <Text style={styles.headerText}>Searching for Camera...</Text>
+        <TouchableOpacity style={[styles.button, styles.backBtn, { marginTop: 15 }]} onPress={() => setScreen('WELCOME')}>
+          <Text style={styles.buttonText}>Back to Welcome</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -198,7 +281,7 @@ export default function App() {
       <Camera
         style={StyleSheet.absoluteFill}
         device={device}
-        isActive={true}
+        isActive={screen === 'SCAN'}
         frameProcessor={frameProcessor}
         pixelFormat="yuv"
       />
@@ -209,7 +292,9 @@ export default function App() {
       {/* Glassmorphic Side HUD Panel */}
       <View style={styles.hudPanel}>
         <View style={styles.hudHeader}>
-          <Text style={styles.hudTitle}>VerifyIdentity</Text>
+          <TouchableOpacity onPress={() => setScreen('WELCOME')} style={styles.backButton}>
+            <Text style={styles.backButtonText}>◀ Exit</Text>
+          </TouchableOpacity>
           <View style={styles.liveIndicator}>
             <View style={styles.pulseDot} />
             <Text style={styles.liveText}>LIVE HUD</Text>
@@ -483,5 +568,133 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     color: '#38bdf8',
+  },
+  // Welcome Screen (Landscape splits)
+  welcomeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 32,
+  },
+  welcomeLeft: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  welcomeRight: {
+    flex: 1.2,
+    justifyContent: 'center',
+    paddingLeft: 24,
+  },
+  logoContainer: {
+    marginBottom: 20,
+  },
+  logoRingOuter: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    borderWidth: 2,
+    borderColor: '#38bdf8',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoRingInner: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(56, 189, 248, 0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoIcon: {
+    fontSize: 36,
+  },
+  welcomeTitle: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#ffffff',
+    letterSpacing: 1,
+  },
+  welcomeSub: {
+    fontSize: 13,
+    color: '#a0aec0',
+    textAlign: 'center',
+    marginTop: 8,
+    maxWidth: 260,
+  },
+  healthCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+    marginBottom: 20,
+  },
+  healthTitle: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#718096',
+    letterSpacing: 1.5,
+    marginBottom: 10,
+  },
+  healthRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginVertical: 4,
+  },
+  healthLabel: {
+    color: '#cbd5e0',
+    fontSize: 12,
+  },
+  healthVal: {
+    fontWeight: '600',
+    fontSize: 12,
+  },
+  greenText: {
+    color: '#00ffaa',
+  },
+  yellowText: {
+    color: '#ecc94b',
+  },
+  redText: {
+    color: '#ff3b30',
+  },
+  cyanText: {
+    color: '#38bdf8',
+  },
+  grayText: {
+    color: '#a0aec0',
+  },
+  scanStartBtn: {
+    backgroundColor: '#38bdf8',
+    borderRadius: 30,
+    paddingVertical: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#38bdf8',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 8,
+  },
+  scanStartBtnText: {
+    color: '#0c0f14',
+    fontSize: 14,
+    fontWeight: 'bold',
+    letterSpacing: 1,
+  },
+  backButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+  },
+  backButtonText: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  backBtn: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
   },
 });
