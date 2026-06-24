@@ -1,4 +1,10 @@
 {
   "name": "VerifyIdentity",
-  "displayName": "VerifyIdentity"
+  "displayName": "VerifyIdentity",
+  "extra": {
+    "eas": {
+      "projectId": "025f1a4a-8491-4a75-b19c-35a09dbf8f8f"
+    }
+  },
+  "owner": "mr.devgenius"
 }
