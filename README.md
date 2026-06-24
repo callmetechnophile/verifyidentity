@@ -1,97 +1,95 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# VerifyIdentity
 
-# Getting Started
+**VerifyIdentity** is a high-performance, landscape-locked React Native application designed for real-time face verification and liveness detection on low-resource devices (<3GB RAM). 
 
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
+The app features a zero-copy, two-stage sequential machine learning inference pipeline written in native Kotlin, integrated with **React Native Vision Camera V4** and **React Native Worklets Core**.
 
-## Step 1: Start Metro
+---
 
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
+## 📱 Features
 
-To start the Metro dev server, run the following command from the root of your React Native project:
+* **Two-Stage Native ML Pipeline**:
+  * **Stage 1 (BlazeFace)**: Google MediaPipe BlazeFace (Full-Range/Rear model) for ultra-fast SSD face detection, bounding box extraction, and 6-point facial landmarks mapping.
+  * **Stage 2 (MobileFaceNet INT8)**: Quantized MobileFaceNet model running in signed 8-bit integer space for 128-dimensional facial embedding extraction and single-frame liveness classification (anti-spoofing).
+* **Zero-Copy Frame Processing**:
+  * All memory buffers (YUV planes to RGB, crop matrices) are pre-allocated at startup in direct native `ByteBuffer` objects, avoiding garbage collector heap pressure.
+  * Native hardware camera rotation is fused directly into the downscaling transform during pixel decoding, making landscape rotation free of O(W×H) copy overheads.
+* **Premium Glassmorphic HUD**:
+  * Rich dark-mode UI with HSL tailoring.
+  * Corner-bracket biometric bounding box overlays tracking the face.
+  * Animated pulse-glow scanning rings.
+  * Side-docked stats panel displaying real-time FPS telemetry, liveness scoring bars, and live 128-D vector previews.
+  * Color-coded states: `SCANNING` (Blue), `VERIFIED` (Neon Green Glow), and `SPOOF ALERT` (Amber/Red warning).
 
-```sh
-# Using npm
-npm start
+---
 
-# OR using Yarn
-yarn start
+## 🏗️ Architecture
+
+```mermaid
+graph TD
+    A["Camera HAL\n(YUV420 HardwareBuffer)"] --> B["Frame Throttle\n(every 3rd frame)"]
+    B --> C["Stage 1: BlazeFace\n256×256 float32"]
+    C --> D{"Face\nDetected?"}
+    D -- No --> E["Return faceDetected=false"]
+    D -- Yes --> F["Compute CropRect\n(display→sensor coords)"]
+    F --> G["Stage 2: MobileFaceNet\n112×112 INT8"]
+    G --> H["Return WritableMap\n(bbox, embedding, liveness)"]
+
+    style C fill:#4a90d9,color:#fff
+    style G fill:#e74c3c,color:#fff
 ```
 
-## Step 2: Build and run your app
+---
 
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
+## 📦 Standalone APK Download
 
-### Android
+A pre-compiled standalone debug package is available here:
+* 📥 **Download APK**: [VerifyIdentity_debug.apk](file:///C:/Users/worka/.gemini/antigravity/scratch/VerifyIdentity_debug.apk) (140.6 MB)
 
-```sh
-# Using npm
-npm run android
+You can transfer this `.apk` file directly to any Android phone for hardware camera testing.
 
-# OR using Yarn
-yarn android
+---
+
+## 🛠️ Local Setup & Build Instructions
+
+### Prerequisites
+* **Android SDK**: API Platform 34/36, Build Tools 34.0.0/36.0.0.
+* **JDK**: Java 17 (Temurin recommended).
+
+### Model Assets Setup
+For the full face verification and liveness checks to function end-to-end (instead of using the automated UI mock fallbacks), copy your TFLite models into:
 ```
-
-### iOS
-
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
-
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
-
-```sh
-bundle install
+android/app/src/main/assets/
+  ├── blazeface_full_range_sparse.tflite
+  └── mobilefacenet_int8.tflite
 ```
+*Note: If no models are present, the Kotlin plugin catches the missing asset exception at startup and safely runs in **Stub Mode**, cycling simulated detections, bounding boxes, and embeddings to test the HUD visuals.*
 
-Then, and every time you update your native dependencies, run:
+### Running the App
+1. Install dependencies:
+   ```sh
+   npm install
+   ```
+2. Start the Metro developer bundler:
+   ```sh
+   npm start
+   ```
+3. Compile and launch the application on a connected device (forces Landscape orientation):
+   ```sh
+   npm run android
+   ```
+4. To compile the standalone `.apk` directly via command line:
+   ```sh
+   cd android
+   ./gradlew.bat assembleDebug
+   ```
+   The output APK will be placed at `android/app/build/outputs/apk/debug/app-debug.apk`.
 
+---
+
+## 🧪 Mathematical Verification
+Mathematical and coordinate mapping logic (including sigmoid numerical stability, IoU overlap scoring, display-to-sensor landscape mapping, and INT8 quantization mapping) was validated through local test suites. 
+You can run these validation checks with:
 ```sh
-bundle exec pod install
+node verify-math.js
 ```
-
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
-
-```sh
-# Using npm
-npm run ios
-
-# OR using Yarn
-yarn ios
-```
-
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
-
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
-
-## Step 3: Modify your app
-
-Now that you have successfully run the app, let's make changes!
-
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
-
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
-
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
-
-## Congratulations! :tada:
-
-You've successfully run and modified your React Native App. :partying_face:
-
-### Now what?
-
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
-
-# Troubleshooting
-
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
-
-# Learn More
-
-To learn more about React Native, take a look at the following resources:
-
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
