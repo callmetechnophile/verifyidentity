@@ -5,6 +5,7 @@ import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.ReadableArray
 import com.facebook.react.bridge.WritableMap
 import com.facebook.react.bridge.WritableNativeArray
+import androidx.camera.core.ImageProxy
 import com.mrousavy.camera.frameprocessors.Frame
 import com.mrousavy.camera.frameprocessors.FrameProcessorPlugin
 import com.mrousavy.camera.frameprocessors.VisionCameraProxy
@@ -50,7 +51,7 @@ import kotlin.math.roundToInt
 class FaceVerificationFrameProcessorPlugin(
     proxy: VisionCameraProxy,
     options: Map<String, Any>?
-) : FrameProcessorPlugin(proxy, options) {
+) : FrameProcessorPlugin() {
 
     // ═══════════════════════════════════════════════════════════════════════════
     // CONSTANTS

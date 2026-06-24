@@ -23,7 +23,7 @@ class MainApplication : Application(), ReactApplication {
   override fun onCreate() {
     super.onCreate()
     loadReactNative(this)
-    com.mrousavy.camera.frameprocessors.FrameProcessorPluginRegistry.addPlugin("faceVerification") { proxy, options ->
+    com.mrousavy.camera.frameprocessors.FrameProcessorPluginRegistry.addFrameProcessorPlugin("faceVerification") { proxy, options ->
       FaceVerificationFrameProcessorPlugin(proxy, options)
     }
   }

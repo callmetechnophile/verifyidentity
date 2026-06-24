@@ -114,6 +114,9 @@ dependencies {
     implementation 'org.tensorflow:tensorflow-lite:2.14.0'
     implementation 'org.tensorflow:tensorflow-lite-support:0.4.4'
 
+    // CameraX core dependency for ImageProxy resolution in Frame Processor
+    implementation "androidx.camera:camera-core:1.4.0"
+
     if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")
     } else {
