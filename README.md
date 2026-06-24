@@ -44,7 +44,7 @@ graph TD
 ## 📦 Standalone APK Download
 
 A pre-compiled standalone debug package is available here:
-* 📥 **Download APK**: [VerifyIdentity_debug.apk](file:///C:/Users/worka/.gemini/antigravity/scratch/VerifyIdentity_debug.apk) (140.6 MB)
+* 📥 **Download APK**: [VerifyIdentity_debug.apk](https://github.com/callmetechnophile/verifyidentity/releases/download/v1.0.0/VerifyIdentity_debug.apk) (140.6 MB)
 
 You can transfer this `.apk` file directly to any Android phone for hardware camera testing.
 
